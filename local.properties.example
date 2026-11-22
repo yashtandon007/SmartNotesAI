@@ -1,0 +1,5 @@
+# Copy this file to local.properties (which is git-ignored) and add your key.
+# Get a free key at https://aistudio.google.com/apikey
+GEMINI_API_KEY=your_api_key_here
+# Optional: override the cloud model
+GEMINI_MODEL=gemini-3.6-flash
