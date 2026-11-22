@@ -4,7 +4,7 @@ An Android notes app with **hybrid on-device + cloud generative AI**.
 
 - **Summarise notes on-device** with **Gemini Nano** (ML Kit GenAI / Android AICore), private and offline, with automatic **cloud fallback** to the Gemini API.
 - **Auto-tag notes** using Gemini **structured output** (JSON schema), not fragile text parsing.
-- **Ask your notes** using **RAG** (retrieval-augmented generation): on-device TF-IDF retrieval picks the relevant notes, and Gemini answers using only those, citing its sources.
+- **Ask your notes** using **RAG** (retrieval-augmented generation): on-device TF-IDF retrieval picks the relevant notes, and Gemini answers using only those, citing its sources. Answers **stream in token by token** over server-sent events.
 
 Built with Kotlin, Jetpack Compose (Material 3), MVVM with unidirectional state, Clean Architecture, Hilt, Room, Coroutines/Flow, Retrofit + kotlinx.serialization, type-safe Navigation Compose, and JUnit/MockK tests on GitHub Actions CI.
 
@@ -72,7 +72,7 @@ See **[docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md)** for a full walkthrough.
 
 ## Roadmap
 
-- [ ] Stream responses token-by-token (`streamGenerateContent`, SSE → `Flow<String>`)
+- [x] Stream "Ask your notes" answers token by token (`streamGenerateContent` SSE → `Flow<String>`)
 - [ ] Semantic search with embeddings, replacing TF-IDF behind the same retriever API
 - [ ] Migrate cloud calls to the Gemini Interactions API
 - [ ] Auto-tag in the background with WorkManager

@@ -18,6 +18,8 @@ data class ChatMessage(
     val fromUser: Boolean,
     val sources: List<Note> = emptyList(),
     val isError: Boolean = false,
+    /** True while the answer is still arriving. */
+    val isStreaming: Boolean = false,
 )
 
 data class AskUiState(
@@ -45,15 +47,37 @@ class AskViewModel @Inject constructor(
             it.copy(input = "", isThinking = true, messages = it.messages + ChatMessage(question, fromUser = true))
         }
         viewModelScope.launch {
-            val reply = try {
-                val result = askNotes(question)
-                ChatMessage(result.answer, fromUser = false, sources = result.sources)
+            try {
+                val streamed = askNotes.stream(question)
+                // Show an empty assistant bubble (with its sources) straight away...
+                appendMessage(ChatMessage("", fromUser = false, sources = streamed.sources, isStreaming = true))
+                // ...then grow it chunk by chunk as tokens arrive.
+                streamed.chunks.collect { chunk -> updateLastMessage { it.copy(text = it.text + chunk) } }
+                updateLastMessage { it.copy(isStreaming = false) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                ChatMessage(e.message ?: "Couldn't get an answer. Check your connection.", fromUser = false, isError = true)
+                val error = e.message ?: "Couldn't get an answer. Check your connection."
+                val last = _state.value.messages.lastOrNull()
+                if (last != null && !last.fromUser && last.isStreaming) {
+                    // Keep any partial answer and flag the failure on the same bubble.
+                    updateLastMessage {
+                        it.copy(text = if (it.text.isBlank()) error else it.text + "\n\n($error)", isError = true, isStreaming = false)
+                    }
+                } else {
+                    appendMessage(ChatMessage(error, fromUser = false, isError = true))
+                }
+            } finally {
+                _state.update { it.copy(isThinking = false) }
             }
-            _state.update { it.copy(isThinking = false, messages = it.messages + reply) }
         }
+    }
+
+    private fun appendMessage(message: ChatMessage) =
+        _state.update { it.copy(messages = it.messages + message) }
+
+    private fun updateLastMessage(transform: (ChatMessage) -> ChatMessage) = _state.update { state ->
+        val messages = state.messages
+        if (messages.isEmpty()) state else state.copy(messages = messages.dropLast(1) + transform(messages.last()))
     }
 }

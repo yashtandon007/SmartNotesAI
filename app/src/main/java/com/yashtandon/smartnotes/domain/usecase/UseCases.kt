@@ -3,6 +3,8 @@ package com.yashtandon.smartnotes.domain.usecase
 import com.yashtandon.smartnotes.domain.ai.AiEngine
 import com.yashtandon.smartnotes.domain.model.AiOutput
 import com.yashtandon.smartnotes.domain.model.NotesAnswer
+import com.yashtandon.smartnotes.domain.model.StreamedNotesAnswer
+import kotlinx.coroutines.flow.flowOf
 import com.yashtandon.smartnotes.domain.rag.TfIdfRetriever
 import com.yashtandon.smartnotes.domain.repository.NotesRepository
 import javax.inject.Inject
@@ -46,6 +48,19 @@ class AskNotesUseCase @Inject constructor(
             return NotesAnswer(NO_MATCH_ANSWER, emptyList())
         }
         return NotesAnswer(ai.answer(question, relevant), relevant)
+    }
+
+    /**
+     * Streaming RAG: retrieval happens first (so sources can be shown right away),
+     * then the answer streams in token by token.
+     */
+    suspend fun stream(question: String, maxNotes: Int = 3): StreamedNotesAnswer {
+        require(question.isNotBlank()) { "Ask a question first." }
+        val relevant = retriever.topK(question, repository.getAllNotes(), k = maxNotes).map { it.note }
+        if (relevant.isEmpty()) {
+            return StreamedNotesAnswer(flowOf(NO_MATCH_ANSWER), emptyList())
+        }
+        return StreamedNotesAnswer(ai.answerStream(question, relevant), relevant)
     }
 
     companion object {

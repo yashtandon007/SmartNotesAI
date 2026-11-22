@@ -20,3 +20,6 @@ data class ScoredNote(val note: Note, val score: Double)
 
 /** Final answer for "Ask your notes", including which notes it was based on. */
 data class NotesAnswer(val answer: String, val sources: List<Note>)
+
+/** Streaming version: the sources are known up front, the text arrives chunk by chunk. */
+data class StreamedNotesAnswer(val chunks: kotlinx.coroutines.flow.Flow<String>, val sources: List<Note>)

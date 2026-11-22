@@ -1,9 +1,12 @@
 package com.yashtandon.smartnotes.data.remote
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Streaming
 
 /**
  * Gemini REST API (generateContent), called directly with Retrofit.
@@ -17,6 +20,18 @@ interface GeminiApi {
         @Path("model") model: String,
         @Body body: GenerateContentRequest,
     ): GenerateContentResponse
+
+    /**
+     * Server-sent events (SSE): the server keeps the connection open and sends
+     * `data: {json}` lines, each holding the next piece of the answer.
+     * @Streaming stops Retrofit from buffering the whole body in memory.
+     */
+    @Streaming
+    @POST("v1beta/models/{model}:streamGenerateContent?alt=sse")
+    suspend fun streamGenerateContent(
+        @Path("model") model: String,
+        @Body body: GenerateContentRequest,
+    ): ResponseBody
 }
 
 @Serializable
@@ -75,4 +90,20 @@ fun GenerateContentResponse.text(): String {
         .trim()
     check(text.isNotEmpty()) { "The model returned an empty response." }
     return text
+}
+
+/**
+ * Parses one SSE line. Returns the text chunk for `data:` lines that carry text,
+ * or null for blank lines, comments, keep-alives and chunks without text.
+ */
+fun parseSseLine(line: String, json: Json): String? {
+    if (!line.startsWith("data:")) return null
+    val payload = line.removePrefix("data:").trim()
+    if (payload.isEmpty() || payload == "[DONE]") return null
+    val response = json.decodeFromString(GenerateContentResponse.serializer(), payload)
+    response.promptFeedback?.blockReason?.let { throw IllegalStateException("Request was blocked: $it") }
+    return response.candidates.firstOrNull()?.content?.parts.orEmpty()
+        .mapNotNull { it.text }
+        .joinToString("")
+        .ifEmpty { null }
 }

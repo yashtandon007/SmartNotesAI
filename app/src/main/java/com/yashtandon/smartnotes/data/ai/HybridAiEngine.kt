@@ -8,6 +8,7 @@ import com.yashtandon.smartnotes.domain.model.AiOutput
 import com.yashtandon.smartnotes.domain.model.AiSource
 import com.yashtandon.smartnotes.domain.model.Note
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -44,6 +45,9 @@ class HybridAiEngine @Inject constructor(
 
     override suspend fun answer(question: String, context: List<Note>): String =
         cloud.answer(question, context)
+
+    override fun answerStream(question: String, context: List<Note>): Flow<String> =
+        cloud.answerStream(question, context)
 
     private companion object {
         const val TAG = "HybridAiEngine"

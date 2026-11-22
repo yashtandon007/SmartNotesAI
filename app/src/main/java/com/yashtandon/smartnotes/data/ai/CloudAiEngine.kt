@@ -6,6 +6,7 @@ import com.yashtandon.smartnotes.data.remote.GenerateContentRequest
 import com.yashtandon.smartnotes.data.remote.GenerationConfig
 import com.yashtandon.smartnotes.data.remote.Part
 import com.yashtandon.smartnotes.data.remote.Schema
+import com.yashtandon.smartnotes.data.remote.parseSseLine
 import com.yashtandon.smartnotes.data.remote.text
 import com.yashtandon.smartnotes.di.GeminiModel
 import com.yashtandon.smartnotes.domain.ai.AiEngine
@@ -13,6 +14,10 @@ import com.yashtandon.smartnotes.domain.ai.Prompts
 import com.yashtandon.smartnotes.domain.model.AiOutput
 import com.yashtandon.smartnotes.domain.model.AiSource
 import com.yashtandon.smartnotes.domain.model.Note
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -46,12 +51,25 @@ class CloudAiEngine @Inject constructor(
     override suspend fun answer(question: String, context: List<Note>): String =
         generate(Prompts.ANSWER_SYSTEM, Prompts.answerPrompt(question, context))
 
+    override fun answerStream(question: String, context: List<Note>): Flow<String> = flow {
+        val body = api.streamGenerateContent(model, request(Prompts.ANSWER_SYSTEM, Prompts.answerPrompt(question, context)))
+        // use {} closes the HTTP connection even if the collector cancels mid-stream.
+        body.use {
+            val source = it.source()
+            while (!source.exhausted()) {
+                val line = source.readUtf8Line() ?: break
+                parseSseLine(line, json)?.let { chunk -> emit(chunk) }
+            }
+        }
+    }.flowOn(Dispatchers.IO) // blocking socket reads must not run on the main thread
+
     private suspend fun generate(system: String, prompt: String, config: GenerationConfig? = null): String {
-        val request = GenerateContentRequest(
-            systemInstruction = Content(parts = listOf(Part(system))),
-            contents = listOf(Content(role = "user", parts = listOf(Part(prompt)))),
-            generationConfig = config,
-        )
-        return api.generateContent(model, request).text()
+        return api.generateContent(model, request(system, prompt, config)).text()
     }
+
+    private fun request(system: String, prompt: String, config: GenerationConfig? = null) = GenerateContentRequest(
+        systemInstruction = Content(parts = listOf(Part(system))),
+        contents = listOf(Content(role = "user", parts = listOf(Part(prompt)))),
+        generationConfig = config,
+    )
 }

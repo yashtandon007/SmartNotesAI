@@ -119,7 +119,11 @@ private fun MessageBubble(message: ChatMessage, onOpenNote: (Long) -> Unit) {
     Box(Modifier.fillMaxWidth(), contentAlignment = if (message.fromUser) Alignment.CenterEnd else Alignment.CenterStart) {
         Card(colors = colors, modifier = Modifier.widthIn(max = 320.dp)) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(message.text, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    // A block cursor at the end shows the answer is still streaming in.
+                    text = if (message.isStreaming) message.text + " ▍" else message.text,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 if (message.sources.isNotEmpty()) {
                     Text("Based on:", style = MaterialTheme.typography.labelMedium)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
