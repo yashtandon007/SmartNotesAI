@@ -30,12 +30,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yashtandon.smartnotes.domain.model.Note
+import com.yashtandon.smartnotes.ui.theme.SmartNotesTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesListScreen(
     onOpenNote: (Long) -> Unit,
@@ -46,7 +47,29 @@ fun NotesListScreen(
     val notes by viewModel.notes.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
 
+    NotesListContent(
+        notes = notes,
+        query = query,
+        onQueryChange = viewModel::onQueryChange,
+        onOpenNote = onOpenNote,
+        onNewNote = onNewNote,
+        onAsk = onAsk,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NotesListContent(
+    notes: List<Note>,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onOpenNote: (Long) -> Unit,
+    onNewNote: () -> Unit,
+    onAsk: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text("Smart Notes") },
@@ -62,7 +85,7 @@ fun NotesListScreen(
         Column(Modifier.padding(padding).fillMaxSize()) {
             OutlinedTextField(
                 value = query,
-                onValueChange = viewModel::onQueryChange,
+                onValueChange = onQueryChange,
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 placeholder = { Text("Search notes or tags") },
                 singleLine = true,
@@ -120,6 +143,55 @@ private fun EmptyState(isSearching: Boolean) {
             text = if (isSearching) "No notes match your search." else "No notes yet.\nTap + to write your first one.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun NotesListPreview() {
+    SmartNotesTheme {
+        NotesListContent(
+            notes = listOf(
+                Note(
+                    id = 1,
+                    title = "Jetpack Compose",
+                    content = "Compose is a modern toolkit for building native Android UI.",
+                    summary = "Modern UI toolkit for Android.",
+                    tags = listOf("android", "ui"),
+                ),
+                Note(
+                    id = 2,
+                    title = "Kotlin Coroutines",
+                    content = "Asynchronous programming made easy.",
+                    tags = listOf("kotlin", "async"),
+                ),
+                Note(
+                    id = 3,
+                    title = "",
+                    content = "This is a note without a title.",
+                )
+            ),
+            query = "",
+            onQueryChange = {},
+            onOpenNote = {},
+            onNewNote = {},
+            onAsk = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun NotesListEmptyPreview() {
+    SmartNotesTheme {
+        NotesListContent(
+            notes = emptyList(),
+            query = "",
+            onQueryChange = {},
+            onOpenNote = {},
+            onNewNote = {},
+            onAsk = {},
         )
     }
 }
